@@ -1,7 +1,20 @@
 const inventory = document.getElementById("inventory");
 let products = JSON.parse(localStorage.getItem("products")) || [];
-let openIndex = null;
+let openId = null;
 
+/* =========================
+   CLEANUP
+========================= */
+function cleanupProducts() {
+  products = products.filter(
+    p => getDaysLeft(p.expiry) > 0 && p.quantity > 0
+  );
+}
+
+/* =========================
+   INIT
+========================= */
+cleanupProducts();
 render();
 
 /* =========================
@@ -20,28 +33,29 @@ function addProduct() {
     return;
   }
 
-  products.push({ name, category, price, quantity, unit, expiry });
-  openIndex = products.length - 1;
+  products.push({
+    id: Date.now(),
+    name,
+    category,
+    price,
+    quantity,
+    unit,
+    expiry
+  });
 
+  cleanupProducts();
   save();
   clearForm();
   render();
 }
 
 /* =========================
-   RENDER INVENTORY
+   RENDER
 ========================= */
 function render() {
   inventory.innerHTML = "";
 
-  // Auto-delete expired or zero-quantity items
-  products = products.filter(p =>
-    getDaysLeft(p.expiry) > 0 && p.quantity > 0
-  );
-
-  openIndex = null;
-
-  products.forEach((p, i) => {
+  products.forEach(p => {
     const days = getDaysLeft(p.expiry);
     const color =
       days > 2 ? "#22c55e" :
@@ -50,10 +64,11 @@ function render() {
 
     const li = document.createElement("li");
     li.className = "item";
+    if (p.id === openId) li.classList.add("open");
     li.style.borderColor = color;
 
     li.innerHTML = `
-      <div class="header" onclick="toggle(${i})">
+      <div class="header">
         <div>
           <div class="name">${p.name}</div>
           <div class="sub">${days} days left</div>
@@ -67,163 +82,144 @@ function render() {
 
         <div class="qty">
           <strong>Qty</strong>
-          <button onclick="changeQty(event, ${i}, -1)">−</button>
+          <button class="dec">−</button>
           <span>${p.quantity} ${p.unit}</span>
-          <button onclick="changeQty(event, ${i}, 1)">+</button>
+          <button class="inc">+</button>
         </div>
 
-        <button onclick="addToCalendar(event, ${i})">📅 Add Reminder</button>
-
         <div class="actions">
-          <span onclick="editItem(event, ${i})">✏️</span>
-          <span onclick="deleteItem(event, ${i})">🗑️</span>
+          <span class="edit">✏️</span>
+          <span class="delete">🗑️</span>
         </div>
       </div>
     `;
 
-    addSwipeToDelete(li, i);
+    li.querySelector(".header").onclick = () => {
+      openId = openId === p.id ? null : p.id;
+      render();
+    };
+
+    li.querySelector(".inc").onclick = e => changeQty(e, p.id, 1);
+    li.querySelector(".dec").onclick = e => changeQty(e, p.id, -1);
+    li.querySelector(".delete").onclick = e => deleteItem(e, p.id);
+    li.querySelector(".edit").onclick = e => editItem(e, p.id);
+
+    addSwipeToDelete(li, p.id);
     inventory.appendChild(li);
   });
 
-  save();
   renderAlerts();
 }
 
 /* =========================
-   TOGGLE EXPAND
+   QUANTITY
 ========================= */
-function toggle(i) {
-  const items = document.querySelectorAll(".item");
-  items.forEach((el, idx) => {
-    el.classList.toggle("open", idx === i && !el.classList.contains("open"));
-  });
-}
-
-/* =========================
-   QUANTITY CHANGE (UNLIMITED)
-========================= */
-function changeQty(e, i, delta) {
+function changeQty(e, id, delta) {
   e.stopPropagation();
+  const p = products.find(p => p.id === id);
+  if (!p) return;
 
-  products[i].quantity += delta;
-
-  if (products[i].quantity <= 0) {
-    products.splice(i, 1);
-  }
-
+  p.quantity += delta;
+  cleanupProducts();
+  save();
   render();
 }
 
 /* =========================
    DELETE
 ========================= */
-function deleteItem(e, i) {
+function deleteItem(e, id) {
   e.stopPropagation();
-  products.splice(i, 1);
+  products = products.filter(p => p.id !== id);
+  if (openId === id) openId = null;
+  save();
   render();
 }
 
 /* =========================
    EDIT
 ========================= */
-function editItem(e, i) {
+function editItem(e, id) {
   e.stopPropagation();
-  const p = products[i];
+  const p = products.find(p => p.id === id);
+  if (!p) return;
 
-  document.getElementById("name").value = p.name;
-  document.getElementById("category").value = p.category === "—" ? "" : p.category;
-  document.getElementById("price").value = p.price;
-  document.getElementById("quantity").value = p.quantity;
-  document.getElementById("unit").value = p.unit;
-  document.getElementById("expiry").value = p.expiry;
+  name.value = p.name;
+  category.value = p.category === "—" ? "" : p.category;
+  price.value = p.price;
+  quantity.value = p.quantity;
+  unit.value = p.unit;
+  expiry.value = p.expiry;
 
-  products.splice(i, 1);
+  products = products.filter(x => x.id !== id);
+  openId = null;
+  save();
   render();
 }
 
 /* =========================
-   SWIPE TO DELETE (MOBILE)
+   SWIPE
 ========================= */
-function addSwipeToDelete(el, index) {
+function addSwipeToDelete(el, id) {
   let startX = 0;
-
-  el.addEventListener("touchstart", e => {
-    startX = e.touches[0].clientX;
-  });
-
+  el.addEventListener("touchstart", e => startX = e.touches[0].clientX);
   el.addEventListener("touchend", e => {
     if (startX - e.changedTouches[0].clientX > 80) {
-      products.splice(index, 1);
+      products = products.filter(p => p.id !== id);
+      if (openId === id) openId = null;
+      save();
       render();
     }
   });
 }
 
 /* =========================
-   IN-APP ALERTS
+   ALERTS
 ========================= */
 function renderAlerts() {
-  const alertBox = document.getElementById("alerts");
-  alertBox.innerHTML = "";
+  const box = document.getElementById("alerts");
+  box.innerHTML = "";
 
   const today = products.filter(p => getDaysLeft(p.expiry) === 0);
   const tomorrow = products.filter(p => getDaysLeft(p.expiry) === 1);
 
-  if (today.length > 0) {
-    alertBox.innerHTML += `
-      <div class="alert red">
-        🔴 ${today.length} item(s) expiring today
-      </div>`;
-  }
+  if (today.length)
+    box.innerHTML += `<div class="alert red">🔴 ${today.length} expiring today</div>`;
+  if (tomorrow.length)
+    box.innerHTML += `<div class="alert yellow">🟡 ${tomorrow.length} expiring tomorrow</div>`;
 
-  if (tomorrow.length > 0) {
-    alertBox.innerHTML += `
-      <div class="alert yellow">
-        🟡 ${tomorrow.length} item(s) expiring tomorrow
-      </div>`;
-  }
-
-  if ((today.length + tomorrow.length) > 0 && navigator.vibrate) {
+  if ((today.length + tomorrow.length) && navigator.vibrate)
     navigator.vibrate(150);
-  }
 }
 
 /* =========================
-   CALENDAR REMINDER (ICS)
+   CALENDAR
 ========================= */
-function addToCalendar(e, index) {
-  e.stopPropagation();
-  const p = products[index];
+function downloadAllReminders() {
+  const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
+  if (!expiring.length) return alert("No expiring items");
 
-  const eventDate = new Date(p.expiry);
-  eventDate.setDate(eventDate.getDate() - 1);
+  let events = "";
+  expiring.forEach(p => {
+    const d = new Date(p.expiry);
+    d.setDate(d.getDate() - 1);
+    const s = d.toISOString().replace(/[-:]/g, "").split(".")[0];
+    events += `BEGIN:VEVENT\nSUMMARY:Expiry - ${p.name}\nDTSTART:${s}\nDTEND:${s}\nEND:VEVENT\n`;
+  });
 
-  const start = eventDate.toISOString().replace(/[-:]/g, "").split(".")[0];
-
-  const ics = `
-BEGIN:VCALENDAR
-VERSION:2.0
-BEGIN:VEVENT
-SUMMARY:Expiry Reminder - ${p.name}
-DESCRIPTION:${p.name} expires tomorrow
-DTSTART:${start}
-DTEND:${start}
-END:VEVENT
-END:VCALENDAR
-  `.trim();
-
+  const ics = `BEGIN:VCALENDAR\nVERSION:2.0\n${events}END:VCALENDAR`;
   const blob = new Blob([ics], { type: "text/calendar" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${p.name}-expiry.ics`;
-  link.click();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "Expiry-Reminders.ics";
+  a.click();
 }
 
 /* =========================
    HELPERS
 ========================= */
-function getDaysLeft(date) {
-  return Math.ceil((new Date(date) - new Date()) / 86400000);
+function getDaysLeft(d) {
+  return Math.ceil((new Date(d) - new Date()) / 86400000);
 }
 
 function save() {
@@ -235,16 +231,13 @@ function clearForm() {
 }
 
 /* =========================
-   VOICE INPUT
+   VOICE
 ========================= */
 function startVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return alert("Speech recognition not supported");
-
+  if (!SR) return alert("Not supported");
   const r = new SR();
   r.lang = "en-IN";
   r.start();
-  r.onresult = e => {
-    document.getElementById("name").value = e.results[0][0].transcript;
-  };
+  r.onresult = e => name.value = e.results[0][0].transcript;
 }
