@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Expiry</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ADD PRODUCT -->
+  <div class="card">
+    <h2>Add Product</h2>
+
+    <label>Product Name</label>
+    <div class="input-wrapper">
+      <input id="name" placeholder="Product name (required)">
+      <span class="mic-icon" onclick="startVoice()">🎤</span>
+    </div>
+
+    <div class="row">
+      <select id="category">
+        <option value="">Category (optional)</option>
+        <option>Dairy</option>
+        <option>Fruits</option>
+        <option>Vegetables</option>
+        <option>Grains</option>
+        <option>Medicine</option>
+      </select>
+
+      <input id="price" type="number" placeholder="Price ₹ (optional)">
+    </div>
+
+    <div class="row">
+      <input id="quantity" type="number" placeholder="Quantity (required)">
+      <select id="unit">
+        <option value="">Unit (required)</option>
+        <option>kg</option>
+        <option>pcs</option>
+        <option>liters</option>
+        <option>ml</option>
+      </select>
+    </div>
+
+    <input id="expiry" type="date" placeholder="Expiry date (required)">
+
+    <button onclick="addProduct()">Add</button>
+  </div>
+
+  <!-- INVENTORY -->
+  <div class="card">
+    <h2>Inventory</h2>
+
+    <!-- IN-APP ALERTS -->
+    <div id="alerts" class="alerts"></div>
+
+    <ul id="inventory"></ul>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
