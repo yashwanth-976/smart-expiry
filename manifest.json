@@ -1,18 +1,18 @@
 {
   "name": "Smart Expiry Manager",
   "short_name": "SmartExpiry",
-  "start_url": ".",
+  "start_url": "/smart-expiry/",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "/smart-expiry/android-launchericon-192-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "/smart-expiry/android-launchericon-512-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
