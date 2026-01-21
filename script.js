@@ -158,22 +158,6 @@ function editItem(e, id) {
 }
 
 /* =========================
-   SWIPE
-========================= */
-function addSwipeToDelete(el, id) {
-  let startX = 0;
-  el.addEventListener("touchstart", e => startX = e.touches[0].clientX);
-  el.addEventListener("touchend", e => {
-    if (startX - e.changedTouches[0].clientX > 80) {
-      products = products.filter(p => p.id !== id);
-      if (openId === id) openId = null;
-      save();
-      render();
-    }
-  });
-}
-
-/* =========================
    ALERTS
 ========================= */
 function renderAlerts() {
@@ -193,26 +177,68 @@ function renderAlerts() {
 }
 
 /* =========================
-   CALENDAR
+   VOICE INPUT
 ========================= */
-function downloadAllReminders() {
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SR) {
+    alert("Voice input not supported in this browser.");
+    return;
+  }
+
+  const r = new SR();
+  r.lang = "en-IN";
+  r.start();
+
+  r.onresult = e => {
+    document.getElementById("name").value =
+      e.results[0][0].transcript;
+  };
+}
+
+/* =========================
+   🔥 REAL GROQ RECIPES
+========================= */
+async function showRecipes() {
+  const recipeBox = document.getElementById("recipeList");
+  recipeBox.innerHTML = "<p>🍳 Generating recipes...</p>";
+
   const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
-  if (!expiring.length) return alert("No expiring items");
+  if (expiring.length === 0) {
+    recipeBox.innerHTML = "<p>No expiring products found.</p>";
+    return;
+  }
 
-  let events = "";
-  expiring.forEach(p => {
-    const d = new Date(p.expiry);
-    d.setDate(d.getDate() - 1);
-    const s = d.toISOString().replace(/[-:]/g, "").split(".")[0];
-    events += `BEGIN:VEVENT\nSUMMARY:Expiry - ${p.name}\nDTSTART:${s}\nDTEND:${s}\nEND:VEVENT\n`;
-  });
+  try {
+    const res = await fetch(
+      "https://smart-expiry-backend.onrender.com/recipes",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingredients: expiring.map(p => p.name)
+        })
+      }
+    );
 
-  const ics = `BEGIN:VCALENDAR\nVERSION:2.0\n${events}END:VCALENDAR`;
-  const blob = new Blob([ics], { type: "text/calendar" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "Expiry-Reminders.ics";
-  a.click();
+    const data = await res.json();
+
+    recipeBox.innerHTML = `
+      <ul>
+        ${data.recipes.map(r => `<li>🍽️ ${r}</li>`).join("")}
+      </ul>
+    `;
+  } catch (err) {
+    recipeBox.innerHTML =
+      "<p>⚠️ Unable to reach AI server. Try again.</p>";
+  }
+
+  document.getElementById("recipeModal").classList.remove("hidden");
+}
+
+function closeRecipes() {
+  document.getElementById("recipeModal").classList.add("hidden");
 }
 
 /* =========================
@@ -228,60 +254,4 @@ function save() {
 
 function clearForm() {
   document.querySelectorAll("input").forEach(i => i.value = "");
-}
-
-/* =========================
-   VOICE
-========================= */
-function startVoice() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SR) {
-    alert("Voice input not supported in this browser. Please type manually.");
-    return;
-  }
-
-  const r = new SR();
-  r.lang = "en-IN";
-  r.start();
-
-  r.onresult = e => {
-    document.getElementById("name").value =
-      e.results[0][0].transcript;
-  };
-
-  r.onerror = () => {
-    alert("Microphone permission denied or unavailable.");
-  };
-}
-
-function showRecipes() {
-  const recipeBox = document.getElementById("recipeList");
-  recipeBox.innerHTML = "";
-
-  const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
-
-  if (expiring.length === 0) {
-    recipeBox.innerHTML = "<p>No expiring products found.</p>";
-  } else {
-    const names = expiring.map(p => p.name).join(", ");
-
-    recipeBox.innerHTML = `
-      <p><strong>Using:</strong> ${names}</p>
-      <ul>
-        <li>🥗 Mixed ${names} Stir Fry</li>
-        <li>🍲 Simple ${names} Curry</li>
-        <li>🍚 ${names} Rice Bowl</li>
-      </ul>
-      <p style="font-size:13px;color:#6b7280">
-        AI-powered recipes will be enabled in the next phase.
-      </p>
-    `;
-  }
-
-  document.getElementById("recipeModal").classList.remove("hidden");
-}
-
-function closeRecipes() {
-  document.getElementById("recipeModal").classList.add("hidden");
 }
