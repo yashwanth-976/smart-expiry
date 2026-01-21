@@ -11,7 +11,8 @@
 <body>
 
 <div class="container">
-
+  <h1 class="app-title">Smart Expiry</h1>
+  <p class="app-subtitle">Track, reduce waste, and get smart recipe suggestions</p>
   <!-- ADD PRODUCT -->
   <div class="card">
     <h2>Add Product</h2>
@@ -68,6 +69,20 @@
   📅
 </div>
 
+<!-- RECIPE FAB -->
+<div class="recipe-fab" onclick="showRecipes()" title="Get Recipe Ideas">
+  🍳
+</div>
+
+<!-- RECIPE MODAL -->
+<div id="recipeModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Recipe Ideas</h3>
+    <div id="recipeList"></div>
+    <button onclick="closeRecipes()">Close</button>
+  </div>
+</div>
+
 <script src="script.js"></script>
 <script>
   if ("serviceWorker" in navigator) {
@@ -77,4 +92,3 @@
 </script>
 </body>
 </html>
-
