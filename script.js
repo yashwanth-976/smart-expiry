@@ -235,9 +235,53 @@ function clearForm() {
 ========================= */
 function startVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return alert("Not supported");
+
+  if (!SR) {
+    alert("Voice input not supported in this browser. Please type manually.");
+    return;
+  }
+
   const r = new SR();
   r.lang = "en-IN";
   r.start();
-  r.onresult = e => name.value = e.results[0][0].transcript;
+
+  r.onresult = e => {
+    document.getElementById("name").value =
+      e.results[0][0].transcript;
+  };
+
+  r.onerror = () => {
+    alert("Microphone permission denied or unavailable.");
+  };
+}
+
+function showRecipes() {
+  const recipeBox = document.getElementById("recipeList");
+  recipeBox.innerHTML = "";
+
+  const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
+
+  if (expiring.length === 0) {
+    recipeBox.innerHTML = "<p>No expiring products found.</p>";
+  } else {
+    const names = expiring.map(p => p.name).join(", ");
+
+    recipeBox.innerHTML = `
+      <p><strong>Using:</strong> ${names}</p>
+      <ul>
+        <li>🥗 Mixed ${names} Stir Fry</li>
+        <li>🍲 Simple ${names} Curry</li>
+        <li>🍚 ${names} Rice Bowl</li>
+      </ul>
+      <p style="font-size:13px;color:#6b7280">
+        AI-powered recipes will be enabled in the next phase.
+      </p>
+    `;
+  }
+
+  document.getElementById("recipeModal").classList.remove("hidden");
+}
+
+function closeRecipes() {
+  document.getElementById("recipeModal").classList.add("hidden");
 }
