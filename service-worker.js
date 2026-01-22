@@ -1,5 +1,7 @@
-const CACHE_NAME = "smart-expiry-v1";
-const FILES_TO_CACHE = [
+const CACHE_VERSION = "v3"; // ⬅️ CHANGE THIS EVERY DEPLOY
+const CACHE_NAME = `smart-expiry-${CACHE_VERSION}`;
+
+const ASSETS = [
   "/smart-expiry/",
   "/smart-expiry/index.html",
   "/smart-expiry/style.css",
@@ -7,14 +9,35 @@ const FILES_TO_CACHE = [
   "/smart-expiry/manifest.json"
 ];
 
+// INSTALL
 self.addEventListener("install", event => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
 });
 
+// ACTIVATE – CLEAR OLD CACHES
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// FETCH
 self.addEventListener("fetch", event => {
   event.respondWith(
-    caches.match(event.request).then(res => res || fetch(event.request))
+    caches.match(event.request).then(cached => {
+      return cached || fetch(event.request);
+    })
   );
 });
