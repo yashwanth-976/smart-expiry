@@ -158,6 +158,22 @@ function editItem(e, id) {
 }
 
 /* =========================
+   SWIPE
+========================= */
+function addSwipeToDelete(el, id) {
+  let startX = 0;
+  el.addEventListener("touchstart", e => startX = e.touches[0].clientX);
+  el.addEventListener("touchend", e => {
+    if (startX - e.changedTouches[0].clientX > 80) {
+      products = products.filter(p => p.id !== id);
+      if (openId === id) openId = null;
+      save();
+      render();
+    }
+  });
+}
+
+/* =========================
    ALERTS
 ========================= */
 function renderAlerts() {
@@ -177,68 +193,26 @@ function renderAlerts() {
 }
 
 /* =========================
-   VOICE INPUT
+   CALENDAR
 ========================= */
-function startVoice() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SR) {
-    alert("Voice input not supported in this browser.");
-    return;
-  }
-
-  const r = new SR();
-  r.lang = "en-IN";
-  r.start();
-
-  r.onresult = e => {
-    document.getElementById("name").value =
-      e.results[0][0].transcript;
-  };
-}
-
-/* =========================
-   🔥 REAL GROQ RECIPES
-========================= */
-async function showRecipes() {
-  const recipeBox = document.getElementById("recipeList");
-  recipeBox.innerHTML = "<p>🍳 Generating recipes...</p>";
-
+function downloadAllReminders() {
   const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
-  if (expiring.length === 0) {
-    recipeBox.innerHTML = "<p>No expiring products found.</p>";
-    return;
-  }
+  if (!expiring.length) return alert("No expiring items");
 
-  try {
-    const res = await fetch(
-      "https://smart-expiry-backend.onrender.com/recipes",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ingredients: expiring.map(p => p.name)
-        })
-      }
-    );
+  let events = "";
+  expiring.forEach(p => {
+    const d = new Date(p.expiry);
+    d.setDate(d.getDate() - 1);
+    const s = d.toISOString().replace(/[-:]/g, "").split(".")[0];
+    events += `BEGIN:VEVENT\nSUMMARY:Expiry - ${p.name}\nDTSTART:${s}\nDTEND:${s}\nEND:VEVENT\n`;
+  });
 
-    const data = await res.json();
-
-    recipeBox.innerHTML = `
-      <ul>
-        ${data.recipes.map(r => `<li>🍽️ ${r}</li>`).join("")}
-      </ul>
-    `;
-  } catch (err) {
-    recipeBox.innerHTML =
-      "<p>⚠️ Unable to reach AI server. Try again.</p>";
-  }
-
-  document.getElementById("recipeModal").classList.remove("hidden");
-}
-
-function closeRecipes() {
-  document.getElementById("recipeModal").classList.add("hidden");
+  const ics = `BEGIN:VCALENDAR\nVERSION:2.0\n${events}END:VCALENDAR`;
+  const blob = new Blob([ics], { type: "text/calendar" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "Expiry-Reminders.ics";
+  a.click();
 }
 
 /* =========================
@@ -254,4 +228,111 @@ function save() {
 
 function clearForm() {
   document.querySelectorAll("input").forEach(i => i.value = "");
+}
+
+/* =========================
+   VOICE
+========================= */
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SR) {
+    alert("Voice input not supported in this browser. Please type manually.");
+    return;
+  }
+
+  const r = new SR();
+  r.lang = "en-IN";
+  r.start();
+
+  r.onresult = e => {
+    document.getElementById("name").value =
+      e.results[0][0].transcript;
+  };
+
+  r.onerror = () => {
+    alert("Microphone permission denied or unavailable.");
+  };
+}
+
+async function showRecipes() {
+  const recipeBox = document.getElementById("recipeList");
+  recipeBox.innerHTML = "<p>Generating smart recipes...</p>";
+
+  const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
+
+  if (!expiring.length) {
+    recipeBox.innerHTML = "<p>No expiring products found.</p>";
+    document.getElementById("recipeModal").classList.remove("hidden");
+    return;
+  }
+
+  const ingredientNames = expiring.map(p => p.name);
+
+  document.getElementById("recipeModal").classList.remove("hidden");
+
+  const recipes = await fetchAIRecipes(ingredientNames);
+
+  renderAIRecipes(recipes);
+}
+
+function closeRecipes() {
+  document.getElementById("recipeModal").classList.add("hidden");
+}
+const BACKEND_URL = "https://smart-expiry-backend.onrender.com";
+
+async function fetchAIRecipes(ingredients) {
+  try {
+    const response = await fetch(`${BACKEND_URL}/recipes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ ingredients })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to fetch recipes");
+    }
+
+    return data.recipes || [];
+  } catch (err) {
+    console.error("AI Recipe Error:", err);
+    return [];
+  }
+}
+
+function renderAIRecipes(recipes) {
+  const recipeBox = document.getElementById("recipeList");
+  recipeBox.innerHTML = "";
+
+  if (!recipes.length) {
+    recipeBox.innerHTML = "<p>No recipes generated.</p>";
+    return;
+  }
+
+  recipes.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "recipe-card";
+
+    div.innerHTML = `
+      <h4>🍽️ ${r.name}</h4>
+
+      <strong>Ingredients:</strong>
+      <ul>
+        ${r.ingredients.map(i => `<li>${i}</li>`).join("")}
+      </ul>
+
+      <strong>Steps:</strong>
+      <ol>
+        ${r.steps.map(s => `<li>${s}</li>`).join("")}
+      </ol>
+
+      <hr/>
+    `;
+
+    recipeBox.appendChild(div);
+  });
 }
