@@ -295,46 +295,33 @@ const BACKEND_URL = "https://smart-expiry-backend.onrender.com";
 
 async function fetchAIRecipes(ingredients) {
   try {
-    const response = await fetch(`${BACKEND_URL}/recipes`, {
+    const res = await fetch(`${BACKEND_URL}/recipes`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ ingredients })
     });
 
-    const data = await response.json();
-    console.log("AI RESPONSE:", data);
+    const data = await res.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || "Failed to fetch recipes");
+    if (!res.ok) {
+      console.error("Backend error:", data);
+      throw new Error("Backend failed");
     }
 
-    // 🔥 normalize possible backend formats
-    if (Array.isArray(data.recipes)) {
-      return data.recipes;
-    }
+    return data.recipes;
 
-    if (typeof data.recipes === "string") {
-      return [{
-        name: "AI Suggested Recipe",
-        ingredients,
-        steps: data.recipes.split("\n").filter(Boolean)
-      }];
-    }
-
-    if (typeof data.result === "string") {
-      return [{
-        name: "AI Suggested Recipe",
-        ingredients,
-        steps: data.result.split("\n").filter(Boolean)
-      }];
-    }
-
-    return [];
   } catch (err) {
-    console.error("AI Recipe Error:", err);
+    console.error("Fetch AI Recipes failed:", err);
+
+    document.getElementById("recipeList").innerHTML =
+      "<p style='color:red'>⚠️ Backend or AI is sleeping. Try again in 30 seconds.</p>";
+
     return [];
   }
 }
+
 
 function renderAIRecipes(recipes) {
   const recipeBox = document.getElementById("recipeList");
