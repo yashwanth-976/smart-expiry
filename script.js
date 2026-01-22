@@ -297,19 +297,39 @@ async function fetchAIRecipes(ingredients) {
   try {
     const response = await fetch(`${BACKEND_URL}/recipes`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ingredients })
     });
 
     const data = await response.json();
+    console.log("AI RESPONSE:", data);
 
     if (!response.ok) {
       throw new Error(data.error || "Failed to fetch recipes");
     }
 
-    return data.recipes || [];
+    // 🔥 normalize possible backend formats
+    if (Array.isArray(data.recipes)) {
+      return data.recipes;
+    }
+
+    if (typeof data.recipes === "string") {
+      return [{
+        name: "AI Suggested Recipe",
+        ingredients,
+        steps: data.recipes.split("\n").filter(Boolean)
+      }];
+    }
+
+    if (typeof data.result === "string") {
+      return [{
+        name: "AI Suggested Recipe",
+        ingredients,
+        steps: data.result.split("\n").filter(Boolean)
+      }];
+    }
+
+    return [];
   } catch (err) {
     console.error("AI Recipe Error:", err);
     return [];
@@ -381,15 +401,22 @@ async function generateManualRecipes() {
 
   const ingredients = Array.from(checked).map(c => c.value);
 
-  if (!ingredients.length) {
-    alert("Select at least one product");
+  if (ingredients.length < 2) {
+    alert("Please select at least 2 food items");
     return;
   }
 
-  document.getElementById("recipeList").innerHTML =
-    "<p>Generating recipes...</p>";
+  const recipeBox = document.getElementById("recipeList");
+  recipeBox.innerHTML = "<p>Generating recipes...</p>";
 
   const recipes = await fetchAIRecipes(ingredients);
+
+  if (!recipes || recipes.length === 0) {
+    recipeBox.innerHTML =
+      "<p>AI could not generate recipes for these items. Try different foods.</p>";
+    return;
+  }
+
   renderAIRecipes(recipes);
 }
 /* =========================
