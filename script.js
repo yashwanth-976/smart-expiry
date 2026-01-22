@@ -1,4 +1,9 @@
-const inventory = document.getElementById("inventory");
+let inventory;
+document.addEventListener("DOMContentLoaded", () => {
+  inventory = document.getElementById("inventory");
+  cleanupProducts();
+  render();
+});
 let products = JSON.parse(localStorage.getItem("products")) || [];
 let openId = null;
 
@@ -10,12 +15,6 @@ function cleanupProducts() {
     p => getDaysLeft(p.expiry) > 0 && p.quantity > 0
   );
 }
-
-/* =========================
-   INIT
-========================= */
-cleanupProducts();
-render();
 
 /* =========================
    ADD PRODUCT
@@ -199,6 +198,17 @@ function downloadAllReminders() {
   const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
   if (!expiring.length) return alert("No expiring items");
 
+  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    const p = expiring[0];
+    const date = p.expiry.replace(/-/g, "");
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Expiry:+${p.name}&dates=${date}/${date}`;
+    window.open(url, "_blank");
+    return;
+  }
+
+  // Desktop ICS
   let events = "";
   expiring.forEach(p => {
     const d = new Date(p.expiry);
@@ -255,12 +265,13 @@ function startVoice() {
   };
 }
 
+/* =========================
+   SHOW RECEPIES IN AI
+========================= */
 async function showRecipes() {
   const recipeBox = document.getElementById("recipeList");
   recipeBox.innerHTML = "<p>Generating smart recipes...</p>";
-
   const expiring = products.filter(p => getDaysLeft(p.expiry) <= 2);
-
   if (!expiring.length) {
     recipeBox.innerHTML = "<p>No expiring products found.</p>";
     document.getElementById("recipeModal").classList.remove("hidden");
@@ -273,7 +284,8 @@ async function showRecipes() {
 
   const recipes = await fetchAIRecipes(ingredientNames);
 
-  renderAIRecipes(recipes);
+renderManualSelection();
+renderAIRecipes(recipes);
 }
 
 function closeRecipes() {
@@ -335,4 +347,120 @@ function renderAIRecipes(recipes) {
 
     recipeBox.appendChild(div);
   });
+}
+
+/* =========================
+   MANUAL SELECTION AI RECIPES 
+========================= */
+function renderManualSelection() {
+  const box = document.getElementById("manualSelect");
+  box.innerHTML = "";
+
+  if (!products.length) {
+    box.innerHTML = "<p>No products available.</p>";
+    return;
+  }
+
+  box.innerHTML = `
+    <p><strong>Select products manually:</strong></p>
+    ${products.map(p => `
+      <label style="display:block">
+        <input type="checkbox" value="${p.name}">
+        ${p.name}
+      </label>
+    `).join("")}
+    <button onclick="generateManualRecipes()">Generate Recipes</button>
+    <hr/>
+  `;
+}
+
+async function generateManualRecipes() {
+  const checked = document.querySelectorAll(
+    "#manualSelect input[type='checkbox']:checked"
+  );
+
+  const ingredients = Array.from(checked).map(c => c.value);
+
+  if (!ingredients.length) {
+    alert("Select at least one product");
+    return;
+  }
+
+  document.getElementById("recipeList").innerHTML =
+    "<p>Generating recipes...</p>";
+
+  const recipes = await fetchAIRecipes(ingredients);
+  renderAIRecipes(recipes);
+}
+/* =========================
+	LANGUAGE TRANSLATION
+========================= */
+
+const translations = {
+  en: {
+    title: "Smart Expiry",
+    subtitle: "Track, reduce waste, and get smart recipe suggestions",
+    addProduct: "Add Product",
+    productName: "Product Name",
+    quantity: "Quantity",
+    expiry: "Expiry Date",
+    inventory: "Inventory",
+    add: "Add",
+    recipeIdeas: "Recipe Ideas"
+  },
+  hi: {
+    title: "स्मार्ट एक्सपायरी",
+    subtitle: "भोजन की बर्बादी कम करें और स्मार्ट रेसिपी पाएं",
+    addProduct: "उत्पाद जोड़ें",
+    productName: "उत्पाद नाम",
+    quantity: "मात्रा",
+    expiry: "समाप्ति तिथि",
+    inventory: "सूची",
+    add: "जोड़ें",
+    recipeIdeas: "रेसिपी सुझाव"
+  },
+  te: {
+    title: "స్మార్ట్ ఎక్స్‌పైరీ",
+    subtitle: "ఆహార వ్యర్థాలను తగ్గించండి మరియు స్మార్ట్ వంటకాలు పొందండి",
+    addProduct: "ఉత్పత్తి జోడించండి",
+    productName: "ఉత్పత్తి పేరు",
+    quantity: "పరిమాణం",
+    expiry: "గడువు తేదీ",
+    inventory: "జాబితా",
+    add: "జోడించండి",
+    recipeIdeas: "వంటకాల ఆలోచనలు"
+  },
+  };
+
+function changeLanguage(lang) {
+  const t = translations[lang];
+  if (!t) return;
+
+  document.getElementById("appTitle").innerText = t.title;
+  document.getElementById("appSubtitle").innerText = t.subtitle;
+
+  document.getElementById("addProductTitle").innerText = t.addProduct;
+  document.getElementById("productNameLabel").innerText = t.productName;
+  document.getElementById("inventoryTitle").innerText = t.inventory;
+  document.getElementById("addBtn").innerText = t.add;
+  document.getElementById("recipeTitle").innerText = t.recipeIdeas;
+
+  document.getElementById("quantity").placeholder = t.quantity;
+
+  localStorage.setItem("language", lang);
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const savedLang = localStorage.getItem("language") || "en";
+  changeLanguage(savedLang);
+  const sel = document.getElementById("languageSelect");
+  if (sel) sel.value = savedLang;
+});
+function toggleLang() {
+  document.getElementById("langMenu").classList.toggle("hidden");
+}
+
+function selectLang(lang) {
+  changeLanguage(lang);
+  localStorage.setItem("language", lang);
+  document.getElementById("langMenu").classList.add("hidden");
 }
