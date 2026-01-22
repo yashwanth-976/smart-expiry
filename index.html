@@ -9,15 +9,30 @@
   <meta name="theme-color" content="#2563eb">
 </head>
 <body>
-
 <div class="container">
-  <h1 class="app-title">Smart Expiry</h1>
-  <p class="app-subtitle">Track, reduce waste, and get smart recipe suggestions</p>
+
+  <div class="top-bar">
+    <div class="title-group">
+      <h1 id="appTitle">Smart Expiry</h1>
+      <p id="appSubtitle">
+        Track, reduce waste, and get smart recipe suggestions
+      </p>
+    </div>
+
+    <div class="lang-wrapper">
+      <span class="lang-icon" onclick="toggleLang()">🌐</span>
+      <div id="langMenu" class="lang-menu hidden">
+        <div onclick="selectLang('en')">English</div>
+        <div onclick="selectLang('hi')">हिंदी</div>
+        <div onclick="selectLang('te')">తెలుగు</div>
+      </div>
+    </div>
+  </div>
   <!-- ADD PRODUCT -->
   <div class="card">
-    <h2>Add Product</h2>
+    <h2 id="addProductTitle">Add Product</h2>
 
-    <label>Product Name</label>
+    <label id="productNameLabel">Product Name</label>
     <div class="input-wrapper">
       <input id="name" placeholder="Product name (required)">
       <span class="mic-icon" onclick="startVoice()">🎤</span>
@@ -47,14 +62,13 @@
       </select>
     </div>
 
-    <input id="expiry" type="date" placeholder="Expiry date (required)">
-
-    <button onclick="addProduct()">Add</button>
+    <input id="expiry" type="date" aria-label="Expiry Date" title="Select expiry date">
+    <button id="addBtn" onclick="addProduct()">Add</button>
   </div>
 
   <!-- INVENTORY -->
   <div class="card">
-    <h2>Inventory</h2>
+    <h2 id="inventoryTitle">Inventory</h2>
 
     <!-- IN-APP ALERTS -->
     <div id="alerts" class="alerts"></div>
@@ -77,7 +91,8 @@
 <!-- RECIPE MODAL -->
 <div id="recipeModal" class="modal hidden">
   <div class="modal-content">
-    <h3>Recipe Ideas</h3>
+    <h3 id="recipeTitle">Recipe Ideas</h3>
+    <div id="manualSelect"></div>
     <div id="recipeList"></div>
     <button onclick="closeRecipes()">Close</button>
   </div>
@@ -88,7 +103,6 @@
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/smart-expiry/service-worker.js");
   }
-</script>
 </script>
 </body>
 </html>
