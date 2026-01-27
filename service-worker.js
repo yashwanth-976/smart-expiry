@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v6"; // ⬅️ CHANGE THIS EVERY DEPLOY
+const CACHE_VERSION = "v7"; // ⬅️ CHANGE THIS EVERY DEPLOY
 const CACHE_NAME = `smart-expiry-${CACHE_VERSION}`;
 
 const ASSETS = [
@@ -41,6 +41,7 @@ self.addEventListener("fetch", event => {
     })
   );
 });
+
 
 
 
